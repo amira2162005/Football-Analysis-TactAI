@@ -1,0 +1,7 @@
+ultralytics
+supervision
+OpenCV
+NumPy
+Matplotlib
+Pandas
+roboflow
