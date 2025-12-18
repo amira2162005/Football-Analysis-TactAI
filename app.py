@@ -15,7 +15,7 @@ st.write("Upload an image and get YOLO detection results")
 def load_model():
     return YOLO("best.pt")  # خلي اسم الموديل بتاعك هنا
 
-model = load_model()
+model = YOLO("yolov8n.pt")
 
 # Upload image
 uploaded_file = st.file_uploader(
