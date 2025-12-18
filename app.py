@@ -1,41 +1,66 @@
 import streamlit as st
-from ultralytics import YOLO
-from PIL import Image
-import numpy as np
 import cv2
+import tempfile
+import numpy as np
+from ultralytics import YOLO
 
-# Page config
-st.set_page_config(page_title="YOLO Detection", layout="centered")
+st.set_page_config(page_title="Football Player Detection", layout="centered")
+st.title("⚽ Football Match Player Detection")
 
-st.title("🔍 YOLO Object Detection Demo")
-st.write("Upload an image and get YOLO detection results")
-
-# Load model (cache to speed up)
+# Load YOLO model (YOLOv8n small, جاهز)
 @st.cache_resource
 def load_model():
-    return YOLO("best.pt")  # خلي اسم الموديل بتاعك هنا
+    return YOLO("yolov8n.pt")
 
-model = YOLO("yolov8n.pt")
+model = load_model()
 
-# Upload image
-uploaded_file = st.file_uploader(
-    "Upload Image",
-    type=["jpg", "jpeg", "png"]
-)
+# Upload video
+uploaded_file = st.file_uploader("Upload Video", type=["mp4", "mov"])
 
 if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Original Image", use_container_width=True)
+    # Save uploaded video to a temp file
+    tfile = tempfile.NamedTemporaryFile(delete=False)
+    tfile.write(uploaded_file.read())
 
-    # Convert PIL image to OpenCV
-    img_array = np.array(image)
-    img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+    cap = cv2.VideoCapture(tfile.name)
+    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps    = cap.get(cv2.CAP_PROP_FPS)
 
-    # YOLO inference
-    results = model(img_array)
+    # Prepare output video file
+    out_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(out_file, fourcc, fps, (width, height))
 
-    # Plot results
-    result_img = results[0].plot()
-    result_img = cv2.cvtColor(result_img, cv2.COLOR_BGR2RGB)
+    stframe = st.empty()
+    frame_count = 0
+    st.info("Processing video, please wait... ⏳")
 
-    st.image(result_img, caption="Detection Result", use_container_width=True)
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # YOLO detection
+        results = model(frame)
+        frame = results[0].plot()  # plot boxes on frame
+
+        # Add placeholder text "Player" on each detected box
+        for r in results[0].boxes:
+            x1, y1, x2, y2 = map(int, r.xyxy[0])
+            cv2.putText(frame, "Player", (x1, y1-10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+
+        out.write(frame)
+        frame_count += 1
+
+        # Show current frame in Streamlit
+        if frame_count % 5 == 0:  # update every 5 frames for speed
+            stframe.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB")
+
+    cap.release()
+    out.release()
+    st.success("✅ Video processing completed!")
+
+    # Display final video
+    st.video(out_file)
