@@ -1,7 +1,5 @@
+streamlit
 ultralytics
-supervision
-OpenCV
-NumPy
-Matplotlib
-Pandas
-roboflow
+opencv-python-headless
+numpy
+Pillow
